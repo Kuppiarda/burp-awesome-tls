@@ -77,6 +77,10 @@ public class Extension implements BurpExtension {
             transportConfig.Scheme = requestURL.getProtocol();
             transportConfig.HeaderOrder = headerOrder;
 
+            if (requestURL.getPort() != -1) {
+                transportConfig.Host += ":" + requestURL.getPort();
+            }            
+            
             var goConfigJSON = gson.toJson(transportConfig);
             var url = new URI("https://" + settings.getSpoofProxyAddress()).toURL();
             var httpService = HttpService.httpService(url.getHost(), url.getPort(), Objects.equals(url.getProtocol(), "https"));
