@@ -67,22 +67,31 @@ public class Extension implements BurpExtension {
                 throw new Error(new String(request.body().getBytes(), StandardCharsets.UTF_8));
             }
 
+            // Upgrade headerı yollanmışsa TLS işlemesini geçmeli websocketler vs. desteklenmiyor
+            var upgradeHeader = request.headers().stream()
+                    .filter(h -> h.name().equalsIgnoreCase("Upgrade"))
+                    .findFirst();
+            if (upgradeHeader.isPresent() && upgradeHeader.get().value().equalsIgnoreCase("websocket")) {
+                return ProxyRequestToBeSentAction.continueWith(request);
+            }
+
             var headerOrder = new String[request.headers().size()];
             for (var i = 0; i < request.headers().size(); i++) {
                 headerOrder[i] = request.headers().get(i).name();
             }
 
             var transportConfig = settings.toTransportConfig();
+
             transportConfig.Host = requestURL.getHost();
+            if (requestURL.getPort() != -1) {
+                transportConfig.Host += ":" + requestURL.getPort();
+            }
             transportConfig.Scheme = requestURL.getProtocol();
             transportConfig.HeaderOrder = headerOrder;
 
-            if (requestURL.getPort() != -1) {
-                transportConfig.Host += ":" + requestURL.getPort();
-            }            
-            
             var goConfigJSON = gson.toJson(transportConfig);
             var url = new URI("https://" + settings.getSpoofProxyAddress()).toURL();
+
             var httpService = HttpService.httpService(url.getHost(), url.getPort(), Objects.equals(url.getProtocol(), "https"));
             var nextRequest = request.withService(httpService).withAddedHeader(HEADER_KEY, goConfigJSON);
 
