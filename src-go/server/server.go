@@ -90,6 +90,18 @@ func StartServer(addr string) error {
 
 		defer res.Body.Close()
 
+		// Eğer 1xx kodlu varsa (switching protocols vs.) tls proxy yerine burp halletsin
+		if res.StatusCode >= 100 && res.StatusCode < 200 {
+			for k := range res.Header {
+				vv := res.Header.Values(k)
+				for _, v := range vv {
+					w.Header().Add(k, v)
+				}
+			}
+			w.WriteHeader(res.StatusCode)
+			return
+		}
+
 		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			writeError(w, err)
